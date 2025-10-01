@@ -1,143 +1,206 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>〔特〕抽出ツール（完全版）— 介護経過表 PDF → CSV/Excel</title>
-  <style>
-    :root{--pri:#1668c7;--mut:#666}
-    body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;line-height:1.6;margin:0}
-    header{padding:16px 20px;background:linear-gradient(90deg,var(--pri),#1e90ff);color:#fff}
-    header h1{margin:0 0 6px;font-size:20px}
-    header .sub{opacity:.9;font-size:12px}
-    main{padding:16px 20px}
-    .panel{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin:14px 0;background:#fff}
-    .flex{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .dropzone{border:2px dashed var(--pri);padding:22px;text-align:center;color:#174;border-radius:10px;background:#f6fbff}
-    .dropzone.dragover{background:#eef6ff}
-    label{display:flex;gap:6px;align-items:center}
-    input[type="file"]{padding:6px}
-    select,button{padding:8px 12px;border-radius:8px;border:1px solid #cfd6e0;background:#fff}
-    button.primary{background:#1668c7;color:#fff;border-color:#1668c7}
-    button:disabled{opacity:.6}
-    table{border-collapse:collapse;width:100%;font-size:14px}
-    th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top}
-    th{background:#fafafa;position:sticky;top:0}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#eef;color:#225}
-    .mut{color:var(--mut)}
-    progress{width:240px;height:12px}
-    footer{padding:16px 20px;color:#666;font-size:12px}
-    details summary{cursor:pointer}
-    .filelist{margin:6px 0 0 0;padding-left:18px;font-size:13px}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>〔特〕抽出ツール（完全版・精査版）</title>
+<style>
+  :root{--pri:#1668c7;--mut:#666;--err:#d22}
+  body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;line-height:1.6;margin:0}
+  header{padding:16px 20px;background:linear-gradient(90deg,var(--pri),#1e90ff);color:#fff}
+  header h1{margin:0 0 6px;font-size:20px}
+  header .sub{opacity:.9;font-size:12px}
+  main{padding:16px 20px}
+  .panel{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin:14px 0;background:#fff}
+  .flex{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .dropzone{border:2px dashed var(--pri);padding:22px;text-align:center;color:#174;border-radius:10px;background:#f6fbff}
+  .dropzone.dragover{background:#eef6ff}
+  label{display:flex;gap:6px;align-items:center}
+  input[type="file"]{padding:6px}
+  select,button{padding:8px 12px;border-radius:8px;border:1px solid #cfd6e0;background:#fff}
+  button.primary{background:#1668c7;color:#fff;border-color:#1668c7}
+  button:disabled{opacity:.6}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top}
+  th{background:#fafafa;position:sticky;top:0}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#eef;color:#225}
+  .mut{color:var(--mut)} .err{color:var(--err)}
+  progress{width:240px;height:12px}
+  footer{padding:16px 20px;color:#666;font-size:12px}
+  details summary{cursor:pointer}
+  .filelist{margin:6px 0 0 0;padding-left:18px;font-size:13px}
+  #log{white-space:pre-wrap;font-size:12px;color:#333;background:#fafafa;border:1px solid #eee;padding:8px;border-radius:6px;max-height:180px;overflow:auto}
+  .ok{color:#0a8} .ng{color:#d22}
+</style>
 </head>
 <body>
-  <header>
-    <h1>〔特〕抽出ツール（完全版）</h1>
-    <div class="sub">PDF一括処理／〔特〕枠抽出／CSV・Excel出力／日本語OCR対応（ブラウザ内完結）</div>
-  </header>
+<header>
+  <h1>〔特〕抽出ツール（完全版・精査版）</h1>
+  <div class="sub">PDF一括処理／〔特〕枠抽出／CSV・Excel出力／日本語OCR（必要時のみ）— すべてブラウザ内</div>
+</header>
 
-  <main>
-    <section class="panel">
-      <div class="flex">
-        <input type="file" id="fileInput" accept="application/pdf" multiple />
-        <button id="btnStart" class="primary" disabled>抽出開始</button>
-        <button id="btnExportCsv" disabled>CSVダウンロード</button>
-        <button id="btnExportXlsx" disabled>Excelダウンロード</button>
-        <span id="runStatus" class="badge">待機中</span>
-      </div>
-      <div class="flex" style="margin-top:8px">
-        <label><input type="checkbox" id="includeTimeline" /> タイムライン欄の「[特]」も含める</label>
-        <label><input type="checkbox" id="strictTokki" checked /> 〔特〕枠のみ厳格抽出（行頭が「HH:MM [特]」）</label>
-        <label>OCRモード：
-          <select id="ocrMode">
-            <option value="off">しない（PDFテキストのみ）</option>
-            <option value="auto" selected>必要時のみ（テキストなしページのみ）</option>
-            <option value="always">常に（全ページOCR）</option>
-          </select>
-        </label>
-        <label>OCR解像度：
-          <select id="ocrScale">
-            <option value="1.5">1.5x（速い）</option>
-            <option value="2.0" selected>2.0x（推奨）</option>
-            <option value="3.0">3.0x（精度重視）</option>
-          </select>
-        </label>
-        <span class="mut">※OCRは初回のみ学習データをCDNから取得します。</span>
-      </div>
+<main>
+  <section class="panel">
+    <div class="flex">
+      <input type="file" id="fileInput" accept="application/pdf" multiple />
+      <button id="btnStart" class="primary" disabled>抽出開始</button>
+      <button id="btnExportCsv" disabled>CSVダウンロード</button>
+      <button id="btnExportXlsx" disabled>Excelダウンロード</button>
+      <span id="runStatus" class="badge">待機中</span>
+    </div>
+    <div class="flex" style="margin-top:8px">
+      <label><input type="checkbox" id="includeTimeline" /> タイムライン欄の「[特]」も含める</label>
+      <label><input type="checkbox" id="strictTokki" checked /> 〔特〕枠のみ厳格抽出（^HH:MM [特]）</label>
+      <label>OCRモード：
+        <select id="ocrMode">
+          <option value="off">しない</option>
+          <option value="auto" selected>必要時のみ</option>
+          <option value="always">常に</option>
+        </select>
+      </label>
+      <label>OCR解像度：
+        <select id="ocrScale">
+          <option value="1.5">1.5x（速い）</option>
+          <option value="2.0" selected>2.0x</option>
+          <option value="3.0">3.0x（精度）</option>
+        </select>
+      </label>
+      <span class="mut">※ローカル直開き（file://）では動作しません。GitHub Pages や localhost で開いてください。</span>
+    </div>
+    <div id="dropzone" class="dropzone">PDF をここにドロップ、または上のファイル選択から読み込んでください（抽出は「抽出開始」ボタンを押す）。</div>
+    <div id="selectedInfo" class="mut" style="margin-top:6px">未選択</div>
+    <ul id="fileList" class="filelist"></ul>
+    <div class="flex" style="margin-top:6px">
+      <progress id="progress" max="100" value="0"></progress>
+      <span id="progressText" class="mut">0%</span>
+    </div>
+    <div id="stats" style="margin-top:8px" class="mut"></div>
+  </section>
 
-      <div id="dropzone" class="dropzone">PDF をここにドロップ、または上のファイル選択から読み込んでください（抽出は「抽出開始」ボタンで実行）。</div>
+  <section class="panel">
+    <table id="resultTable">
+      <thead>
+        <tr>
+          <th>ファイル名</th><th>ページ</th><th>氏名</th><th>〔特〕枠の内容</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
 
-      <div id="selectedInfo" class="mut" style="margin-top:6px">未選択</div>
-      <ul id="fileList" class="filelist"></ul>
+  <section class="panel">
+    <details open>
+      <summary>診断・ログ</summary>
+      <div id="diag"></div>
+      <div id="error" class="err"></div>
+      <div id="log"></div>
+    </details>
+  </section>
+</main>
 
-      <div class="flex" style="margin-top:6px">
-        <progress id="progress" max="100" value="0"></progress>
-        <span id="progressText" class="mut">0%</span>
-      </div>
-      <div id="stats" style="margin-top:8px" class="mut"></div>
-    </section>
+<footer>© 2025 〔特〕抽出ツール（クライアントサイド版）</footer>
 
-    <section class="panel">
-      <table id="resultTable">
-        <thead>
-          <tr>
-            <th>ファイル名</th>
-            <th>ページ</th>
-            <th>氏名</th>
-            <th>〔特〕枠の内容</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
+<!-- ===== ライブラリ（複数CDNフォールバック） ===== -->
+<script>
+(async () => {
+  const diag = (msg, ok=true) => {
+    const el = document.getElementById('diag');
+    const line = document.createElement('div');
+    line.innerHTML = ok ? `<span class="ok">OK</span> ${msg}` : `<span class="ng">NG</span> ${msg}`;
+    el.appendChild(line);
+  };
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script'); s.src = src; s.async = true;
+    s.onload = () => resolve(src); s.onerror = () => reject(new Error('Load failed: '+src));
+    document.head.appendChild(s);
+  });
+  const tryLoad = async (candidates, test) => {
+    for (const url of candidates) {
+      try { await loadScript(url); if (test()) { diag(`Loaded: ${url}`); return url; } }
+      catch { diag(`Failed: ${url}`, false); }
+    }
+    throw new Error('All CDN candidates failed for '+candidates[0]);
+  };
 
-    <section class="panel">
-      <details>
-        <summary>抽出ルールと注意事項</summary>
-        <ul>
-          <li><b>氏名</b>：「ご利用者名 … 来所日時」の間を正規表現で抽出。</li>
-          <li><b>〔特〕枠</b>：<span class="mono">^HH:MM \[特\]</span> で始まる行を抽出。次行以降が時刻開始でない場合は <b>自動で連結</b>。</li>
-          <li><b>タイムライン欄の「[特]」</b>も含めたい場合はチェックをON。</li>
-          <li><b>OCR</b>：スキャンPDFはテキストが無いのでOCRが必要。日本語+英数字（<span class="mono">jpn+eng</span>）。</li>
-          <li>すべて <b>ブラウザ内処理</b>。ファイルはアップロードされません。</li>
-        </ul>
-      </details>
-    </section>
-  </main>
+  // pdf.js
+  const pdfBase = [
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/',
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/',
+    'https://unpkg.com/pdfjs-dist@3.11.174/build/'
+  ];
+  const pdfUrlUsed = await tryLoad(pdfBase.map(b => b+'pdf.min.js'), () => !!window.pdfjsLib);
+  // worker
+  const workerUrl = pdfUrlUsed.replace('pdf.min.js', 'pdf.worker.min.js');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+  diag('pdf.js: OK');
 
-  <footer>© 2025 〔特〕抽出ツール（クライアントサイド版）</footer>
+  // xlsx
+  await tryLoad([
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+  ], () => !!window.XLSX);
+  diag('xlsx: OK');
 
-  <!-- 依存ライブラリ（CDN） -->
-  https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js</script>
-  <script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
-  https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js</script>
-  https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js</script>
+  // tesseract.js（必要時のみ利用、ここでは存在確認だけ）
+  try {
+    await tryLoad([
+      'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+      'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'
+    ], () => !!window.Tesseract);
+    diag('tesseract.js: OK（OCRを使うときに自動）');
+  } catch {
+    diag('tesseract.js: 読み込み失敗（OCRしない/autoなら続行可）', false);
+  }
 
-  <script>
-    // ===== ユーティリティ =====
-    const qs = (s, el=document) => el.querySelector(s);
-    const status = (t) => qs('#runStatus').textContent = t;
-    const setProgress = (v, t='') => { qs('#progress').value = v; qs('#progressText').textContent = `${v|0}% ${t}`; };
+  // ====== メインスクリプト（DOM 構築後） ======
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = {
+      fileInput: document.getElementById('fileInput'),
+      btnStart: document.getElementById('btnStart'),
+      btnExportCsv: document.getElementById('btnExportCsv'),
+      btnExportXlsx: document.getElementById('btnExportXlsx'),
+      includeTimeline: document.getElementById('includeTimeline'),
+      strictTokki: document.getElementById('strictTokki'),
+      ocrMode: document.getElementById('ocrMode'),
+      ocrScale: document.getElementById('ocrScale'),
+      dropzone: document.getElementById('dropzone'),
+      selectedInfo: document.getElementById('selectedInfo'),
+      fileList: document.getElementById('fileList'),
+      progress: document.getElementById('progress'),
+      progressText: document.getElementById('progressText'),
+      stats: document.getElementById('stats'),
+      runStatus: document.getElementById('runStatus'),
+      tbody: document.querySelector('#resultTable tbody'),
+      error: document.getElementById('error'),
+      log: document.getElementById('log'),
+    };
+    const log = (m) => { el.log.textContent += (el.log.textContent ? "\n" : "") + m; };
+    const setError = (msg) => { el.error.textContent = msg || ""; if(msg) console.error(msg); };
+    const status = (t) => el.runStatus.textContent = t;
+    const setProgress = (v, t='') => { el.progress.value = v; el.progressText.textContent = `${v|0}% ${t}`; };
     const normSpace = s => (s||'').replace(/\u3000/g,' ').replace(/[ \t\r]+/g,' ').trim();
 
+    const results = [];    // {file,page,name,tokki[]}
+    let selectedFiles = []; // ← 重複なくここだけで定義
+
     function setStats({files=0,pages=0,hits=0,misses=0}){
-      qs('#stats').textContent = `処理ファイル数: ${files} / 総ページ: ${pages} / ヒット: ${hits} / 未検出: ${misses}`;
+      el.stats.textContent = `処理ファイル数: ${files} / 総ページ: ${pages} / ヒット: ${hits} / 未検出: ${misses}`;
     }
-    function clearRows(){ qs('#resultTable tbody').innerHTML = ''; }
+    function clearRows(){ el.tbody.innerHTML = ''; }
     function addRow({file,page,name,tokki}){
       const tr = document.createElement('tr');
       const td = (t) => { const x=document.createElement('td'); x.innerHTML=t; return x; };
       tr.append(td(file), td(page), td(name),
                td(tokki.map(l=>`<div>${l.replace(/</g,'&lt;')}</div>`).join('')));
-      qs('#resultTable tbody').appendChild(tr);
+      el.tbody.appendChild(tr);
     }
 
-    // ===== テキスト化 =====
     function extractNameFromText(text){
-      const re = /ご利用者名\s*([\p{sc=Hani}\p{sc=Hira}\p{sc=Kana}ー・\s]+?)\s+来所日時/iu;
-      const m = text.replace(/\s+/g,' ').match(re);
+      // ※ 一部ブラウザで Unicode プロパティが弱い場合は簡易版にフォールバック
+      let m = text.replace(/\s+/g,' ').match(/ご利用者名\s*([\p{sc=Hani}\p{sc=Hira}\p{sc=Kana}ー・\s]+?)\s+来所日時/iu);
+      if (!m) m = text.replace(/\s+/g,' ').match(/ご利用者名\s*([^\s]+(?:\s+[^\s]+)?)\s+来所日時/); // 簡易
       return m ? m[1].trim() : '';
     }
     function linesFromTextContent(tc){
@@ -176,739 +239,97 @@
     }
 
     async function ocrPageToText(page, scale=2.0){
-      const viewport = await page.getViewport({ scale: Number(scale) });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      const dataUrl = canvas.toDataURL('image/png');
-
-      const worker = await Tesseract.createWorker({ langPath: 'https://tessdata.projectnaptha.com/4.0.0' });
       try{
-        await worker.loadLanguage('jpn+eng');
-        await worker.initialize('jpn+eng');
-        const { data:{ text } } = await worker.recognize(dataUrl);
-        return text || '';
-      } finally {
-        await worker.terminate();
-      }
+        const viewport = page.getViewport({ scale: Number(scale) }); // getViewportは同期
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if(!window.Tesseract) throw new Error('Tesseract.js not loaded');
+        const worker = await Tesseract.createWorker({ langPath: 'https://tessdata.projectnaptha.com/4.0.0' });
+        try{
+          await worker.loadLanguage('jpn+eng'); await worker.initialize('jpn+eng');
+          const { data:{ text } } = await worker.recognize(canvas.toDataURL('image/png'));
+          return text || '';
+        } finally { await worker.terminate(); }
+      }catch(e){ log('OCR失敗: '+e.message); return ''; }
     }
 
-    // ===== メイン処理 =====
-    const results = []; // {file,page,name,tokki[]}
-    let selectedFiles = []; // 抽出開始まで保持
-
     async function processFiles(fileList){
-      status('解析中…'); setProgress(0); setStats({}); clearRows(); results.length = 0;
-      qs('#btnStart').disabled = true;
-      qs('#btnExportCsv').disabled = true;
-      qs('#btnExportXlsx').disabled = true;
+      setError(''); status('解析中…'); setProgress(0); setStats({}); clearRows(); results.length = 0;
+      el.btnStart.disabled = true; el.btnExportCsv.disabled = true; el.btnExportXlsx.disabled = true;
 
-      const useOCR = qs('#ocrMode').value;
-      const ocrScale = qs('#ocrScale').value;
-      const strict = qs('#strictTokki').checked;
-      const includeTimeline = qs('#includeTimeline').checked;
+      const useOCR = el.ocrMode.value; const ocrScale = el.ocrScale.value;
+      const strict = el.strictTokki.checked; const includeTimeline = el.includeTimeline.checked;
 
       let totalPages = 0, donePages = 0, hitCount = 0, missCount = 0;
 
       for(const file of fileList){
-        const ab = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+        let pdf;
+        try{
+          const ab = await file.arrayBuffer();
+          pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+        }catch(e){
+          setError('PDFの読み込みに失敗（CDN/ネットワーク/ファイル破損の可能性）'); log(String(e));
+          continue;
+        }
         totalPages += pdf.numPages;
 
         for(let p=1;p<=pdf.numPages;p++){
-          const page = await pdf.getPage(p);
-          let lines = [], text = '';
-
           try{
-            const tc = await page.getTextContent({ normalizeWhitespace:false, disableCombineTextItems:false });
-            lines = linesFromTextContent(tc);
-            text = lines.join('\n');
-          }catch(e){ /* 無視 */ }
+            const page = await pdf.getPage(p);
+            let lines = [], text = '';
 
-          const needOCR = (useOCR==='always') || (useOCR==='auto' && (!lines || lines.length===0));
-          if(needOCR){
             try{
-              text = await ocrPageToText(page, ocrScale);
-              lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-            }catch(e){ console.warn('OCR失敗', e); }
-          }
+              const tc = await page.getTextContent({ normalizeWhitespace:false, disableCombineTextItems:false });
+              lines = linesFromTextContent(tc); text = lines.join('\n');
+            }catch{ /* テキストなし → OCR判定へ */ }
 
-          const name = extractNameFromText(text);
-          const tokki = extractTokkiLines(lines, { includeTimeline, strict });
+            const needOCR = (useOCR==='always') || (useOCR==='auto' && (!lines || lines.length===0));
+            if(needOCR){ text = await ocrPageToText(page, ocrScale); lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean); }
 
-          if(tokki.length>0){
-            results.push({ file: file.name, page: p, name, tokki });
-            addRow({ file: file.name, page: p, name, tokki });
-            hitCount++;
-          }else{
-            missCount++;
-          }
+            const name = extractNameFromText(text);
+            const tokki = extractTokkiLines(lines, { includeTimeline, strict });
 
-          donePages++;
-          setProgress(donePages/totalPages*100, `${donePages}/${totalPages}p`);
+            if(tokki.length>0){ results.push({ file: file.name, page: p, name, tokki }); addRow({ file: file.name, page: p, name, tokki }); hitCount++; }
+            else { missCount++; }
+          }catch(e){ log(`ページ処理エラー p.${p}: `+e.message); }
+          finally { donePages++; setProgress(donePages/totalPages*100, `${donePages}/${totalPages}p`); }
         }
       }
-
       setStats({ files: fileList.length, pages: totalPages, hits: hitCount, misses: missCount });
-      qs('#btnExportCsv').disabled = results.length===0;
-      qs('#btnExportXlsx').disabled = results.length===0;
-      status('完了');
-      qs('#btnStart').disabled = selectedFiles.length === 0;
+      el.btnExportCsv.disabled = results.length===0; el.btnExportXlsx.disabled = results.length===0;
+      status('完了'); el.btnStart.disabled = selectedFiles.length === 0;
+
+      // エクスポート
+      function toCSV(rows){ const esc=v=>'"'+String(v??'').replace(/"/g,'""').replace(/\r?\n/g,'\\n')+'"';
+        const header=['ファイル名','ページ','氏名','〔特〕枠の内容'];
+        const body=rows.map(r=>[r.file,r.page,r.name,r.tokki.join('\n')].map(esc).join(','));
+        return [header.join(','),...body].join('\n'); }
+      function downloadBlob(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},0); }
+      el.btnExportCsv.onclick = ()=>{ const csv=toCSV(results); const ts=new Date().toISOString().slice(0,19).replace(/[:T]/g,''); downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8;'}),`tokki_extract_${ts}.csv`); };
+      el.btnExportXlsx.onclick = ()=>{ const rows=results.map(r=>({'ファイル名':r.file,'ページ':r.page,'氏名':r.name,'〔特〕枠の内容':r.tokki.join('\n')})); const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'〔特〕あり'); const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); const ts=new Date().toISOString().slice(0,19).replace(/[:T]/g,''); downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`tokki_extract_${ts}.xlsx`); };
     }
 
-    // ===== エクスポート =====
-    function toCSV(rows){
-      const esc = v => '"' + String(v??'').replace(/"/g,'""').replace(/\r?\n/g,'\\n') + '"';
-      const header = ['ファイル名','ページ','氏名','〔特〕枠の内容'];
-      const body = rows.map(r => [r.file, r.page, r.name, r.tokki.join('\n')].map(esc).join(','));
-      return [header.join(','), ...body].join('\n');
+    // ==== ファイル選択・ドロップ ====
+    function renderFileList(files){
+      el.fileList.innerHTML=''; if(!files || files.length===0){ el.selectedInfo.textContent='未選択'; el.btnStart.disabled=true; return; }
+      el.selectedInfo.textContent=`選択済み: ${files.length} ファイル（抽出開始を押してください）`;
+      const frag=document.createDocumentFragment(); Array.from(files).forEach(f=>{ const li=document.createElement('li'); li.textContent=f.name; frag.appendChild(li); });
+      el.fileList.appendChild(frag); el.btnStart.disabled=false; status('準備完了'); setProgress(0,''); setStats({files:files.length}); el.tbody.innerHTML=''; el.btnExportCsv.disabled=true; el.btnExportXlsx.disabled=true;
     }
-    function downloadBlob(blob, name){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = name;
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
-    }
-    function exportCSV(){
-      const csv = toCSV(results);
-      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'');
-      downloadBlob(new Blob([csv], {type:'text/csv;charset=utf-8;'}), `tokki_extract_${ts}.csv`);
-    }
-    function exportXLSX(){
-      const rows = results.map(r => ({ 'ファイル名':r.file, 'ページ':r.page, '氏名':r.name, '〔特〕枠の内容': r.tokki.join('\n') }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '〔特〕あり');
-      const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'');
-      downloadBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `tokki_extract_${ts}.xlsx`);
-    }
+    el.dropzone.addEventListener('dragover', e=>{ e.preventDefault(); el.dropzone.classList.add('dragover'); });
+    el.dropzone.addEventListener('dragleave', ()=> el.dropzone.classList.remove('dragover'));
+    el.dropzone.addEventListener('drop', e=>{ e.preventDefault(); el.dropzone.classList.remove('dragover'); if(e.dataTransfer?.files?.length){ selectedFiles = Array.from(e.dataTransfer.files); renderFileList(selectedFiles); }});
+    el.fileInput.addEventListener('change', e=>{ if(e.target.files?.length){ selectedFiles = Array.from(e.target.files); renderFileList(selectedFiles); }});
+    el.btnStart.addEventListener('click', ()=>{ if(selectedFiles?.length){ processFiles(selectedFiles); } });
 
-    // ===== イベント =====
-    const dropzone = qs('#dropzone');
-    const fileListEl = document.getElementById('fileList');
-    const selectedInfo = document.getElementById('selectedInfo');
-    let selectedFiles = [];
-
-    function putFileListView(files){
-      fileListEl.innerHTML = '';
-      if(!files || files.length===0){
-        selectedInfo.textContent = '未選択';
-        qs('#btnStart').disabled = true;
-        return;
-      }
-      selectedInfo.textContent = `選択済み: ${files.length} ファイル（抽出開始を押してください）`;
-      const frag = document.createDocumentFragment();
-      Array.from(files).forEach(f => {
-        const li = document.createElement('li');
-        li.textContent = f.name;
-        frag.appendChild(li);
-      });
-      fileListEl.appendChild(frag);
-      qs('#btnStart').disabled = false;
-      status('準備完了');
-      setProgress(0,'');
-      setStats({files: files.length, pages: 0, hits: 0, misses: 0});
-      clearRows();
-      qs('#btnExportCsv').disabled = true;
-      qs('#btnExportXlsx').disabled = true;
-    }
-
-    dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('dragover'); });
-    dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('dragover'));
-    dropzone.addEventListener('drop', e=>{
-      e.preventDefault(); dropzone.classList.remove('dragover');
-      if(e.dataTransfer?.files?.length){
-        selectedFiles = Array.from(e.dataTransfer.files);
-        putFileListView(selectedFiles);
-      }
-    });
-
-    document.getElementById('fileInput').addEventListener('change', e=>{
-      if(e.target.files?.length){
-        selectedFiles = Array.from(e.target.files);
-        putFileListView(selectedFiles);
-      }
-    });
-
-    document.getElementById('btnStart').addEventListener('click', ()=>{
-      if(selectedFiles?.length){ processFiles(selectedFiles); }
-    });
-    document.getElementById('btnExportCsv').addEventListener('click', exportCSV);
-    document.getElementById('btnExportXlsx').addEventListener('click', exportXLSX);
-  </script>
-</body>
-</html><!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>〔特〕抽出ツール（完全版）— 介護経過表 PDF → CSV/Excel</title>
-  <style>
-    :root{--pri:#1668c7;--mut:#666}
-    body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;line-height:1.6;margin:0}
-    header{padding:16px 20px;background:linear-gradient(90deg,var(--pri),#1e90ff);color:#fff}
-    header h1{margin:0 0 6px;font-size:20px}
-    header .sub{opacity:.9;font-size:12px}
-    main{padding:16px 20px}
-    .panel{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin:14px 0;background:#fff}
-    .flex{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .dropzone{border:2px dashed var(--pri);padding:22px;text-align:center;color:#174;border-radius:10px;background:#f6fbff}
-    .dropzone.dragover{background:#eef6ff}
-    label{display:flex;gap:6px;align-items:center}
-    input[type="file"]{padding:6px}
-    select,button{padding:8px 12px;border-radius:8px;border:1px solid #cfd6e0;background:#fff}
-    button.primary{background:#1668c7;color:#fff;border-color:#1668c7}
-    button:disabled{opacity:.6}
-    table{border-collapse:collapse;width:100%;font-size:14px}
-    th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top}
-    th{background:#fafafa;position:sticky;top:0}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#eef;color:#225}
-    .mut{color:var(--mut)}
-    progress{width:240px;height:12px}
-    footer{padding:16px 20px;color:#666;font-size:12px}
-    details summary{cursor:pointer}
-    .filelist{margin:6px 0 0 0;padding-left:18px;font-size:13px}
-  </style>
-</head>
-<body>
-  <header>
-    <h1>〔特〕抽出ツール（完全版）</h1>
-    <div class="sub">PDF一括処理／〔特〕枠抽出／CSV・Excel出力／日本語OCR対応（ブラウザ内完結）</div>
-  </header>
-
-  <main>
-    <section class="panel">
-      <div class="flex">
-        <input type="file" id="fileInput" accept="application/pdf" multiple />
-        <button id="btnStart" class="primary" disabled>抽出開始</button>
-        <button id="btnExportCsv" disabled>CSVダウンロード</button>
-        <button id="btnExportXlsx" disabled>Excelダウンロード</button>
-        <span id="runStatus" class="badge">待機中</span>
-      </div>
-      <div class="flex" style="margin-top:8px">
-        <label><input type="checkbox" id="includeTimeline" /> タイムライン欄の「[特]」も含める</label>
-        <label><input type="checkbox" id="strictTokki" checked /> 〔特〕枠のみ厳格抽出（行頭が「HH:MM [特]」）</label>
-        <label>OCRモード：
-          <select id="ocrMode">
-            <option value="off">しない（PDFテキストのみ）</option>
-            <option value="auto" selected>必要時のみ（テキストなしページのみ）</option>
-            <option value="always">常に（全ページOCR）</option>
-          </select>
-        </label>
-        <label>OCR解像度：
-          <select id="ocrScale">
-            <option value="1.5">1.5x（速い）</option>
-            <option value="2.0" selected>2.0x（推奨）</option>
-            <option value="3.0">3.0x（精度重視）</option>
-          </select>
-        </label>
-        <span class="mut">※OCRは初回のみ学習データをCDNから取得します。</span>
-      </div>
-
-      <div id="dropzone" class="dropzone">PDF をここにドロップ、または上のファイル選択から読み込んでください（抽出は「抽出開始」ボタンで実行）。</div>
-
-      <div id="selectedInfo" class="mut" style="margin-top:6px">未選択</div>
-      <ul id="fileList" class="filelist"></ul>
-
-      <div class="flex" style="margin-top:6px">
-        <progress id="progress" max="100" value="0"></progress>
-        <span id="progressText" class="mut">0%</span>
-      </div>
-      <div id="stats" style="margin-top:8px" class="mut"></div>
-    </section>
-
-    <section class="panel">
-      <table id="resultTable">
-        <thead>
-          <tr>
-            <th>ファイル名</th>
-            <th>ページ</th>
-            <th>氏名</th>
-            <th>〔特〕枠の内容</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section class="panel">
-      <details>
-        <summary>抽出ルールと注意事項</summary>
-        <ul>
-          <li><b>氏名</b>：「ご利用者名 … 来所日時」の間を正規表現で抽出。</li>
-          <li><b>〔特〕枠</b>：<span class="mono">^HH:MM \[特\]</span> で始まる行を抽出。次行以降が時刻開始でない場合は <b>自動で連結</b>。</li>
-          <li><b>タイムライン欄の「[特]」</b>も含めたい場合はチェックをON。</li>
-          <li><b>OCR</b>：スキャンPDFはテキストが無いのでOCRが必要。日本語+英数字（<span class="mono">jpn+eng</span>）。</li>
-          <li>すべて <b>ブラウザ内処理</b>。ファイルはアップロードされません。</li>
-        </ul>
-      </details>
-    </section>
-  </main>
-
-  <footer>© 2025 〔特〕抽出ツール（クライアントサイド版）</footer>
-
-  <!-- 依存ライブラリ（CDN） -->
-  https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js</script>
-  <script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
-  https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js</script>
-  <script src.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js</script>
-
-  <script>
-    // ===== ユーティリティ =====
-    const qs = (s, el=document) => el.querySelector(s);
-    const qsa = (s, el=document) => Array.from(el.querySelectorAll(s));
-    const status = (t) => qs('#runStatus').textContent = t;
-    const setProgress = (v, t='') => { qs('#progress').value = v; qs('#progressText').textContent = `${v|0}% ${t}`; };
-    const normSpace = s => (s||'').replace(/\u3000/g,' ').replace(/[ \t\r]+/g,' ').trim();
-
-    function setStats({files=0,pages=0,hits=0,misses=0}){
-      qs('#stats').textContent = `処理ファイル数: ${files} / 総ページ: ${pages} / ヒット: ${hits} / 未検出: ${misses}`;
-    }
-    function clearRows(){ qs('#resultTable tbody').innerHTML = ''; }
-    function addRow({file,page,name,tokki}){
-      const tr = document.createElement('tr');
-      const td = (t) => { const x=document.createElement('td'); x.innerHTML=t; return x; };
-      tr.append(td(file), td(page), td(name),
-               td(tokki.map(l=>`<div>${l.replace(/</g,'&lt;')}</div>`).join('')));
-      qs('#resultTable tbody').appendChild(tr);
-    }
-
-    // ===== テキスト化 =====
-    function extractNameFromText(text){
-      const re = /ご利用者名\s*([\p{sc=Hani}\p{sc=Hira}\p{sc=Kana}ー・\s]+?)\s+来所日時/iu;
-      const m = text.replace(/\s+/g,' ').match(re);
-      return m ? m[1].trim() : '';
-    }
-    function linesFromTextContent(tc){
-      const items = tc.items || [];
-      const lines = []; let cur = [];
-      for(const it of items){
-        cur.push(it.str);
-        if(it.hasEOL){ lines.push(cur.join('')); cur=[]; }
-      }
-      if(cur.length) lines.push(cur.join(''));
-      return lines.map(l=>l.replace(/[ \t]+/g,' ').trim()).filter(Boolean);
-    }
-    function extractTokkiLines(lines, {includeTimeline=false, strict=true}){
-      const reFrame = /^(\d{2}:\d{2})\s*[\[\(（]?特[\]\)）]?\s*(.+)$/u;
-      const out = [];
-      for(let i=0;i<lines.length;i++){
-        const line = lines[i].trim();
-        if(strict){
-          const m = line.match(reFrame);
-          if(m){
-            let content = m[2]; let j = i+1;
-            while(j<lines.length && !/^\d{2}:\d{2}\b/.test(lines[j]) && !/^\s*$/.test(lines[j])){
-              content += ' ' + lines[j].trim(); j++;
-            }
-            i = j-1;
-            out.push(`${m[1]} ${normSpace(content)}`);
-          }
-        }else{
-          if(/特/.test(line)) out.push(line);
-        }
-      }
-      if(includeTimeline && strict){
-        for(const l of lines){ if(/\[?特\]?/.test(l) && !out.includes(l)) out.push(l); }
-      }
-      return out;
-    }
-
-    async function ocrPageToText(page, scale=2.0){
-      const viewport = await page.getViewport({ scale: Number(scale) });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      const dataUrl = canvas.toDataURL('image/png');
-
-      const worker = await Tesseract.createWorker({ langPath: 'https://tessdata.projectnaptha.com/4.0.0' });
-      try{
-        await worker.loadLanguage('jpn+eng');
-        await worker.initialize('jpn+eng');
-        const { data:{ text } } = await worker.recognize(dataUrl);
-        return text || '';
-      } finally {
-        await worker.terminate();
-      }
-    }
-
-    // ===== メイン処理 =====
-    const results = []; // {file,page,name,tokki[]}
-    let selectedFiles = []; // 抽出開始まで保持
-
-    async function processFiles(fileList){
-      status('解析中…'); setProgress(0); setStats({}); clearRows(); results.length = 0;
-      qs('#btnStart').disabled = true; // 実行中は開始ボタンを無効化
-      qs('#btnExportCsv').disabled = true;
-      qs('#btnExportXlsx').disabled = true;
-
-      const useOCR = qs('#ocrMode').value;
-      const ocrScale = qs('#ocrScale').value;
-      const strict = qs('#strictTokki').checked;
-      const includeTimeline = qs('#includeTimeline').checked;
-
-      let totalPages = 0, donePages = 0, hitCount = 0, missCount = 0;
-
-      for(const file of fileList){
-        const ab = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-        totalPages += pdf.numPages;
-
-        for(let p=1;p<=pdf.numPages;p++){
-          const page = await pdf.getPage(p);
-          let lines = [], text = '';
-
-          try{
-            const tc = await page.getTextContent({ normalizeWhitespace:false, disableCombineTextItems:false });
-            lines = linesFromTextContent(tc);
-            text = lines.join('\n');
-          }catch(e){ /* 無視 */ }
-
-          const needOCR = (useOCR==='always') || (useOCR==='auto' && (!lines || lines.length===0));
-          if(needOCR){
-            try{
-              text = await ocrPageToText(page, ocrScale);
-              lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-            }catch(e){ console.warn('OCR失敗', e); }
-          }
-
-          const name = extractNameFromText(text);
-          const tokki = extractTokkiLines(lines, { includeTimeline, strict });
-
-          if(tokki.length>0){
-            results.push({ file: file.name, page: p, name, tokki });
-            addRow({ file: file.name, page: p, name, tokki });
-            hitCount++;
-          }else{
-            missCount++;
-          }
-
-          donePages++;
-          setProgress(donePages/totalPages*100, `${donePages}/${totalPages}p`);
-        }
-      }
-
-      setStats({ files: fileList.length, pages: totalPages, hits: hitCount, misses: missCount });
-      qs('#btnExportCsv').disabled = results.length===0;
-      qs('#btnExportXlsx').disabled = results.length===0;
-      status('完了');
-      qs('#btnStart').disabled = selectedFiles.length === 0; // 選択が残っていれば再実行可能
-    }
-
-    // ===== エクスポート =====
-    function toCSV(rows){
-      const esc = v => '"' + String(v??'').replace(/"/g,'""').replace(/\r?\n/g,'\\n') + '"';
-      const header = ['ファイル名','ページ','氏名','〔特〕枠の内容'];
-      const body = rows.map(r => [r.file, r.page, r.name, r.tokki.join('\n')].map(esc).join(','));
-      return [header.join(','), ...body].join('\n');
-    }
-    function downloadBlob(blob, name){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = name;
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
-    }
-    function exportCSV(){
-      const csv = toCSV(results);
-      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'');
-      downloadBlob(new Blob([csv], {type:'text/csv;charset=utf-8;'}), `tokki_extract_${ts}.csv`);
-    }
-    function exportXLSX(){
-      const rows = results.map(r => ({ 'ファイル名':r.file, 'ページ':r.page, '氏名':r.name, '〔特〕枠の内容': r.tokki.join('\n') }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '〔特〕あり');
-      const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'');
-      downloadBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `tokki_extract_${ts}.xlsx`);
-    }
-
-    // ===== イベント =====
-    const dropzone = qs('#dropzone');
-    const fileListEl = qs('#fileList');
-    const selectedInfo = qs('#selectedInfo');
-
-    function putFileListView(files){
-      fileListEl.innerHTML = '';
-      if(!files || files.length===0){
-        selectedInfo.textContent = '未選択';
-        qs('#btnStart').disabled = true;
-        return;
-      }
-      selectedInfo.textContent = `選択済み: ${files.length} ファイル（抽出開始を押してください）`;
-      const frag = document.createDocumentFragment();
-      Array.from(files).forEach(f => {
-        const li = document.createElement('li');
-        li.textContent = f.name;
-        frag.appendChild(li);
-      });
-      fileListEl.appendChild(frag);
-      qs('#btnStart').disabled = false; // 開始可能
-      status('準備完了');
-      setProgress(0,'');
-      setStats({files: files.length, pages: 0, hits: 0, misses: 0});
-      clearRows();
-      qs('#btnExportCsv').disabled = true;
-      qs('#btnExportXlsx').disabled = true;
-    }
-
-    dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('dragover'); });
-    dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('dragover'));
-    dropzone.addEventListener('drop', e=>{
-      e.preventDefault(); dropzone.classList.remove('dragover');
-      if(e.dataTransfer?.files?.length){
-        selectedFiles = Array.from(e.dataTransfer.files);
-        putFileListView(selectedFiles);
-      }
-    });
-
-    qs('#fileInput').addEventListener('change', e=>{
-      if(e.target.files?.length){
-        selectedFiles = Array.from(e.target.files);
-        putFileListView(selectedFiles);
-      }
-    });
-
-    qs('#btnStart').addEventListener('click', ()=>{ if(selectedFiles?.length){ processFiles(selectedFiles); } });
-    qs('#btnExportCsv').addEventListener('click', exportCSV);
-    qs('#btnExportXlsx').addEventListener('click', exportXLSX);
-  </script>
-</body>
-</html><!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>〔特〕抽出ツール（介護経過表）</title>
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans JP", sans-serif; line-height: 1.6; padding: 16px; }
-    header { margin-bottom: 12px; }
-    .dropzone { border: 2px dashed #7b8; padding: 24px; border-radius: 8px; color: #055; text-align: center; margin: 12px 0; }
-    .dropzone.dragover { background: #f0fff7; }
-    .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
-    table { border-collapse: collapse; width: 100%; font-size: 14px; }
-    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
-    th { background: #f7f7f7; white-space: nowrap; position: sticky; top: 0; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .small { font-size: 12px; color: #666; }
-    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eef; color: #225; font-size: 12px; margin-left: 6px; }
-    .hidden { display: none; }
-    footer { margin-top: 24px; color: #666; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>〔特〕抽出ツール（介護経過表PDF → CSV）</h1>
-    <div class="small">すべてブラウザ内で処理します / PDFテキスト抽出: pdf.js</div>
-  </header>
-
-  <div class="controls">
-    <input type="file" id="fileInput" accept="application/pdf" multiple />
-    <button id="btnSample" type="button">サンプルで試す</button>
-    <label><input type="checkbox" id="includeTimeline" /> タイムライン欄の「[特]」も含める</label>
-    <button id="btnExport" class="hidden" type="button">CSVをダウンロード</button>
-    <span id="status" class="badge">待機中</span>
-  </div>
-
-  <div id="dropzone" class="dropzone">PDFファイルをここにドロップするか、上のボタンから選択してください。</div>
-
-  <table id="resultTable">
-    <thead>
-      <tr>
-        <th>ファイル名</th>
-        <th>ページ</th>
-        <th>氏名</th>
-        <th>〔特〕枠の内容</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <footer>
-    <p>抽出ルール：行頭が <span class="mono">HH:MM [特]</span> で始まる行（特記事項枠）を対象。必要に応じて調整可能。</p>
-  </footer>
-
-  <!-- pdf.js（UMD版） -->
-  <ttps://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js</script>
-  <script>
-    // ワーカーの場所を指定（同じCDN）
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-
-    const fileInput = document.getElementById('fileInput');
-    const dropzone = document.getElementById('dropzone');
-    const tbody = document.querySelector('#resultTable tbody');
-    const btnExport = document.getElementById('btnExport');
-    const btnSample = document.getElementById('btnSample');
-    const statusBadge = document.getElementById('status');
-    const includeTimeline = document.getElementById('includeTimeline');
-
-    const results = []; // {file,page,name,tokki}
-
-    function setStatus(text) { statusBadge.textContent = text; }
-
-    // 文字列正規化（全角空白→半角、連続空白の圧縮など）
-    function normalize(s) {
-      return s.replace(/\u3000/g, ' ').replace(/[ \t\r]+/g, ' ').trim();
-    }
-
-    // ページの textContent から「行」を復元
-    async function pageToLines(page) {
-      const tc = await page.getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false });
-      const items = tc.items || [];
-
-      // 1) hasEOL を優先して改行復元
-      const lines = [];
-      let cur = [];
-      for (const it of items) {
-        cur.push(it.str);
-        if (it.hasEOL) {
-          lines.push(cur.join(''));
-          cur = [];
-        }
-      }
-      if (cur.length) lines.push(cur.join(''));
-
-      // 2) 後処理：行内のレイアウト空白を少し整える
-      return lines.map(l => l.replace(/[ \t]+/g, ' ').trim()).filter(l => l.length);
-    }
-
-    // 氏名の抽出（ご利用者名 ... 来所日時 の間）
-    function extractName(pageText) {
-      // Unicode プロパティで日本語の氏名に幅を持たせる
-      const re = /ご利用者名\s*([\p{sc=Hani}\p{sc=Hira}\p{sc=Kana}ー・\s]+?)\s+来所日時/iu;
-      const m = pageText.replace(/\s+/g, ' ').match(re);
-      return m ? m[1].trim() : '';
-    }
-
-    // 〔特〕枠の抽出
-    function extractTokkiLines(lines, includeTimelineMode = false) {
-      const tokki = [];
-      const reFrame = /^(\d{2}:\d{2})\s*[\[\(（]?特[\]\)）]?\s*(.+)$/u;
-      const reAny = includeTimelineMode
-        ? /特/ // ざっくり（任意の「特」を含む行）
-        : reFrame;
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-
-        if (!includeTimelineMode) {
-          const m = line.match(reFrame);
-          if (m) {
-            // 連結（次行がインデント風・時刻非開始なら続きとみなす）
-            let content = m[2];
-            let j = i + 1;
-            while (j < lines.length && !/^\d{2}:\d{2}\b/.test(lines[j]) && !/^\s*$/.test(lines[j])) {
-              content += ' ' + lines[j].trim();
-              j++;
-            }
-            i = j - 1;
-            tokki.push(`${m[1]} ${content}`.replace(/[ \t]+/g, ' ').trim());
-          }
-        } else {
-          // タイムラインも含めて「特」を含む行を採用（必要に応じて厳格化可能）
-          if (reAny.test(line)) tokki.push(line);
-        }
-      }
-      return tokki;
-    }
-
-    // CSV生成
-    function toCSV(rows) {
-      const header = ['ファイル名','ページ','氏名','〔特〕枠の内容'];
-      const esc = v => {
-        const s = String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, '\\n');
-        return `"${s}"`;
-      };
-      const body = rows.map(r => [r.file, r.page, r.name, r.tokki.join('\\n')].map(esc).join(','));
-      return [header.join(','), ...body].join('\n');
-    }
-
-    function renderRows(rows) {
-      tbody.innerHTML = '';
-      for (const r of rows) {
-        const tr = document.createElement('tr');
-        const tdFile = document.createElement('td'); tdFile.textContent = r.file;
-        const tdPage = document.createElement('td'); tdPage.textContent = r.page;
-        const tdName = document.createElement('td'); tdName.textContent = r.name;
-        const tdTok = document.createElement('td'); tdTok.innerHTML = r.tokki.map(l => `<div>${l.replace(/</g,'&lt;')}</div>`).join('');
-        tr.append(tdFile, tdPage, tdName, tdTok);
-        tbody.appendChild(tr);
-      }
-      btnExport.classList.toggle('hidden', rows.length === 0);
-    }
-
-    async function handleFiles(fileList) {
-      setStatus('解析中…');
-      results.length = 0;
-      renderRows(results);
-
-      for (const file of fileList) {
-        const ab = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-        for (let p = 1; p <= pdf.numPages; p++) {
-          const page = await pdf.getPage(p);
-          const lines = await pageToLines(page);
-          const pageText = lines.join('\n');
-
-          const name = extractName(pageText);
-          const tokki = extractTokkiLines(lines, includeTimeline.checked);
-
-          if (tokki.length > 0) {
-            results.push({ file: file.name, page: p, name: name, tokki });
-          }
-        }
-      }
-      renderRows(results);
-      setStatus(`完了：${results.length} 行`);
-    }
-
-    // ドラッグ＆ドロップ
-    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-    dropzone.addEventListener('drop', e => {
-      e.preventDefault(); dropzone.classList.remove('dragover');
-      if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
-    });
-
-    fileInput.addEventListener('change', e => {
-      if (fileInput.files?.length) handleFiles(fileInput.files);
-    });
-
-    // CSVダウンロード
-    btnExport.addEventListener('click', () => {
-      const csv = toCSV(results);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const dt = new Date();
-      const ts = dt.toISOString().slice(0,19).replace(/[:T]/g,'');
-      a.href = url;
-      a.download = `tokki_extract_${ts}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      URL.revokeObjectURL(url);
-      a.remove();
-    });
-
-    // サンプル（ダミー1ページ相当のテキストをpdf風に解析する代わりのデモ）
-    btnSample.addEventListener('click', async () => {
-      const sampleLines = [
-        '介護経過表 ご利用者名 佐竹 純子 来所日時 2025年10月01日 09:13',
-        '09:17 [特] バイタルチェック P47回／分(整)胸部症状なし(鷹取)',
-        'その他の行'
-      ];
-      results.length = 0;
-      results.push({ file: 'sample.pdf', page: 1, name: extractName(sampleLines.join(' ')), tokki: extractTokkiLines(sampleLines) });
-      renderRows(results);
-      btnExport.classList.toggle('hidden', results.length === 0);
-      setStatus('サンプル抽出完了');
-    });
-  </script>
+    // グローバルエラー
+    window.addEventListener('error', ev => setError(`スクリプトエラー: ${ev.message}`));
+    window.addEventListener('unhandledrejection', ev => setError(`未処理のPromise拒否: ${ev.reason}`));
+  });
+})();
+</script>
 </body>
 </html>
